@@ -6,6 +6,7 @@ UIView控件
 
 	UIView和UIImageView结合，在UIView的基础上addSubView:UIImageView，两者之间还有一个辅助UIView，用于拉伸。
 	UIView的功能：拖拽、放大、旋转、拉伸，没有添加边界限制功能，长按图片进入拉伸模式。
+	拉伸时，如果改变的属性（长度、宽度）值大于88，则触摸区域的有效值时44，如果小于88，以中心点为分界线，可以分别上下左右拉伸。
 	
 	控件实现了- (void)resetToOrigin函数，调用此函数，view将恢复到初始化位置和状态。
 	
