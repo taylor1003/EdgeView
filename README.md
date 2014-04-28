@@ -5,7 +5,7 @@ UIView控件
 ----------
 
 	UIView和UIImageView结合，在UIView的基础上addSubView:UIImageView，两者之间还有一个辅助UIView，用于拉伸。
-	UIView的功能：拖拽、放大、旋转、拉伸，没有添加边界限制功能。
+	UIView的功能：拖拽、放大、旋转、拉伸，没有添加边界限制功能，长按图片进入拉伸模式。
 	
 	控件实现了- (void)resetToOrigin函数，调用此函数，view将恢复到初始化位置和状态。
 	
