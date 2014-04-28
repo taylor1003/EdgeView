@@ -44,9 +44,7 @@
     testview = [[TPEdgeView alloc] initWithFrame:CGRectMake(0, 200, 200, 200) image:[[NSBundle mainBundle] pathForResource:@"1.jpg" ofType:nil]];
     testview.delegate = self;
     [self.view addSubview:testview];
-    testview.center = self.view.center;
     
-
 }
 
 - (void)resetTpEdgeView

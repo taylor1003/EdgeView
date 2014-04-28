@@ -8,9 +8,10 @@
 
 #import "TPEdgeView.h"
 
-#define EDGE_WIDTH 4
-#define TOUCH_EDGE 10
+#define EDGE_WIDTH 4.0f
+#define TOUCH_EDGE 10.0f
 #define MIN_WIDTH (2 * EDGE_WIDTH) // minimum width for stretch
+#define STANDARD_WIDTH 44.0f
 
 @interface TPEdgeView ()
 {
@@ -31,6 +32,14 @@
 @end
 
 @implementation TPEdgeView
+
+- (void)dealloc
+{
+    [_edgeView release];
+    [_imageView release];
+    [_imageStr release];
+    [super dealloc];
+}
 
 #pragma mark - initialization
 
@@ -122,7 +131,7 @@
     CGContextSaveGState(ctx);
     
     CGContextSetLineWidth(ctx, EDGE_WIDTH);
-    CGContextAddRect(ctx, CGRectMake(EDGE_WIDTH/2, EDGE_WIDTH/2, layer.bounds.size.width - EDGE_WIDTH, layer.bounds.size.height - EDGE_WIDTH));
+    CGContextAddRect(ctx, CGRectMake(EDGE_WIDTH / 2, EDGE_WIDTH / 2, layer.bounds.size.width - EDGE_WIDTH, layer.bounds.size.height - EDGE_WIDTH));
     CGContextStrokePath(ctx);
     CGContextRestoreGState(ctx);
 }
@@ -135,10 +144,25 @@
     UITouch *touch = [touches anyObject];
     _prevPoint = [touch locationInView:self];
     if (_isStretching) {
-        if (_prevPoint.x <= TOUCH_EDGE || _prevPoint.x >= self.bounds.size.width - TOUCH_EDGE || _prevPoint.y <= TOUCH_EDGE || _prevPoint.y >= self.bounds.size.height - TOUCH_EDGE) {
-            
+        if (self.bounds.size.width >= 88.0f) {
+            if (_prevPoint.x <= STANDARD_WIDTH || _prevPoint.x >= self.bounds.size.width - STANDARD_WIDTH) {
+                _isTouching = YES;
+            }
+        } else {
             _isTouching = YES;
         }
+        
+        if (self.bounds.size.height >= 88.0f) {
+            if (_prevPoint.y <= STANDARD_WIDTH || _prevPoint.y >= self.bounds.size.height - STANDARD_WIDTH) {
+                _isTouching = YES;
+            }
+        } else {
+            _isTouching = YES;
+        }
+        //        if (_prevPoint.x <= TOUCH_EDGE || _prevPoint.x >= self.bounds.size.width - TOUCH_EDGE || _prevPoint.y <= TOUCH_EDGE || _prevPoint.y >= self.bounds.size.height - TOUCH_EDGE) {
+        //
+        //            _isTouching = YES;
+        //        }
     } else {
         _startTime = touch.timestamp;
         CGPoint superPrevPoint = [self convertPoint:_prevPoint toView:self.superview];
@@ -150,18 +174,20 @@
 - (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event
 {
     CGPoint movePoint = [[touches anyObject] locationInView:self];
-//    CGPoint superMovePoint = [self convertPoint:movePoint toView:self.superview];
+    //    CGPoint superMovePoint = [self convertPoint:movePoint toView:self.superview];
     
     if (_isTouching && _isStretching) { // 拉伸view
-//        CGPoint superPrevPoint = [self convertPoint:_prevPoint toView:self.superview];
-//        CGFloat deltaX = superMovePoint.x - superPrevPoint.x;
-//        CGFloat deltaY = superMovePoint.y - superPrevPoint.y;
+        //        CGPoint superPrevPoint = [self convertPoint:_prevPoint toView:self.superview];
+        //        CGFloat deltaX = superMovePoint.x - superPrevPoint.x;
+        //        CGFloat deltaY = superMovePoint.y - superPrevPoint.y;
         CGRect prevBounds = self.bounds;
         
         CGFloat deltaX = movePoint.x - _prevPoint.x;
         CGFloat deltaY = movePoint.y - _prevPoint.y;
         CGFloat dx = 0.f, dy = 0.f;
-        if (_prevPoint.x <= TOUCH_EDGE) {
+        
+        CGFloat touchAreaWidth = self.bounds.size.width >= 88.0f ? STANDARD_WIDTH : (self.bounds.size.width / 2);
+        if (_prevPoint.x <= touchAreaWidth) {
             CGRect bounds = CGRectMake(0, 0, self.bounds.size.width - deltaX, self.bounds.size.height);
             if (bounds.size.width < MIN_WIDTH) {
                 return;
@@ -170,7 +196,7 @@
             
             dx = -(self.bounds.size.width - prevBounds.size.width) / 2;
             self.center = CGPointMake(self.center.x + dx * cos(recordDegree), self.center.y + dx * sin(recordDegree));
-        } else if (_prevPoint.x >= self.bounds.size.width - TOUCH_EDGE) {
+        } else if (_prevPoint.x >= self.bounds.size.width - touchAreaWidth) {
             
             CGRect bounds = CGRectMake(0, 0, self.bounds.size.width + deltaX, self.bounds.size.height);
             if (bounds.size.width < MIN_WIDTH) {
@@ -183,25 +209,25 @@
             _prevPoint = movePoint;
         }
         
-        
-        if (_prevPoint.y <= TOUCH_EDGE) {
+        CGFloat touchAreaHeight = self.bounds.size.height >= 88 ? STANDARD_WIDTH : (self.bounds.size.height / 2);
+        if (_prevPoint.y <= touchAreaHeight) {
             
             CGRect bounds = CGRectMake(0, 0, self.bounds.size.width, self.bounds.size.height - deltaY);
             if (bounds.size.height < MIN_WIDTH) {
                 return;
             }
             self.bounds = bounds;
-
+            
             dy = (self.bounds.size.height - prevBounds.size.height) / 2;
             self.center = CGPointMake(self.center.x + dy * sin(recordDegree), self.center.y - dy * cos(recordDegree));
-        } else if (_prevPoint.y >= self.bounds.size.height - TOUCH_EDGE) {
+        } else if (_prevPoint.y >= self.bounds.size.height - touchAreaHeight) {
             
             CGRect bounds = CGRectMake(0, 0, self.bounds.size.width, self.bounds.size.height + deltaY);
             if (bounds.size.height < MIN_WIDTH) {
                 return;
             }
             self.bounds = bounds;
-
+            
             dy = (self.bounds.size.height - prevBounds.size.height) / 2;
             self.center = CGPointMake(self.center.x - dy * sin(recordDegree), self.center.y + dy * cos(recordDegree));
             
@@ -212,11 +238,11 @@
         
     } else if (!_isStretching && !_isTouching) {
         _isDragging = YES;
-
+        
         CGPoint superMovePoint = [self convertPoint:movePoint toView:self.superview];
         self.center = CGPointMake(superMovePoint.x - _deltaPoint.x, superMovePoint.y - _deltaPoint.y);
     }
-
+    
 }
 
 - (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event
