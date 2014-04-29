@@ -12,6 +12,7 @@
 @interface RootViewController () <TPEdgeViewDelegate>
 {
     UIButton *btn;
+    UIButton *btnChange;
     TPEdgeView *testview;
 }
 
@@ -41,7 +42,14 @@
     [btn addTarget:self action:@selector(resetTpEdgeView) forControlEvents:UIControlEventTouchUpInside];
     [self.view addSubview:btn];
     
-    testview = [[TPEdgeView alloc] initWithFrame:CGRectMake(0, 200, 200, 200) image:[[NSBundle mainBundle] pathForResource:@"1.jpg" ofType:nil]];
+    btnChange = [UIButton buttonWithType:UIButtonTypeCustom];
+    btnChange.frame = CGRectMake(150, 50, 50, 50);
+    btnChange.backgroundColor = [UIColor orangeColor];
+    [btnChange setTitle:@"换图" forState:UIControlStateNormal];
+    [btnChange addTarget:self action:@selector(changeImage) forControlEvents:UIControlEventTouchUpInside];
+    [self.view addSubview:btnChange];
+    
+    testview = [[TPEdgeView alloc] initWithFrame:CGRectMake(0, 200, 200, 200) image:[[NSBundle mainBundle] pathForResource:@"1.jpg" ofType:nil] isResponse:YES];
     testview.delegate = self;
     [self.view addSubview:testview];
     
@@ -52,9 +60,16 @@
     [testview resetToOrigin];
 }
 
+- (void)changeImage
+{
+    testview.imageView.image = [UIImage imageWithContentsOfFile:[[NSBundle mainBundle] pathForResource:@"2.jpg" ofType:nil]];
+    
+}
+
 - (void)tpEdgeViewBringOtherViewToFront:(TPEdgeView *)tpEdgeView
 {
     [self.view bringSubviewToFront:btn];
+    [self.view bringSubviewToFront:btnChange];
 }
 
 - (void)didReceiveMemoryWarning
@@ -62,16 +77,5 @@
     [super didReceiveMemoryWarning];
     // Dispose of any resources that can be recreated.
 }
-
-/*
-#pragma mark - Navigation
-
-// In a storyboard-based application, you will often want to do a little preparation before navigation
-- (void)prepareForSegue:(UIStoryboardSegue *)segue sender:(id)sender
-{
-    // Get the new view controller using [segue destinationViewController].
-    // Pass the selected object to the new view controller.
-}
-*/
 
 @end

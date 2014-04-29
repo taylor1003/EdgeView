@@ -17,7 +17,8 @@
 @property (nonatomic, retain) UIImageView *imageView;
 @property (nonatomic, assign) id <TPEdgeViewDelegate> delegate;
 
-- (id)initWithFrame:(CGRect)frame image:(NSString *)image;
+- (id)initWithFrame:(CGRect)frame isResponse:(BOOL)isResponse;
+- (id)initWithFrame:(CGRect)frame image:(NSString *)image isResponse:(BOOL)isResponse;
 
 - (void)resetToOrigin;
 

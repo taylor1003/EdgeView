@@ -25,6 +25,7 @@
 @property (nonatomic, assign) CGPoint prevPoint;
 @property (nonatomic, assign) NSTimeInterval startTime;
 @property (nonatomic, copy) NSString *imageStr;
+@property (nonatomic, assign) BOOL isResponseImage;    // 切换imageView的image时，是否根据现在的宽度适应新的图片
 
 /* recording the  distance between touch point and center point when touch begin */
 @property (nonatomic, assign) CGPoint deltaPoint;
@@ -35,6 +36,10 @@
 
 - (void)dealloc
 {
+    if (_isResponseImage) {
+        [_imageView removeObserver:self forKeyPath:@"image"];
+    }
+    
     [_edgeView release];
     [_imageView release];
     [_imageStr release];
@@ -48,23 +53,33 @@
     self = [super initWithFrame:frame];
     if (self) {
         // Initialization code
-        [self _initEdgeViewWithFrame:frame];
+        [self _initEdgeViewWithFrame:frame isResponse:YES];
     }
     return self;
 }
 
-- (id)initWithFrame:(CGRect)frame image:(NSString *)image
+- (id)initWithFrame:(CGRect)frame isResponse:(BOOL)isResponse
+{
+    self = [super initWithFrame:frame];
+    if (self) {
+        [self _initEdgeViewWithFrame:frame isResponse:isResponse];
+    }
+    return self;
+}
+
+- (id)initWithFrame:(CGRect)frame image:(NSString *)image isResponse:(BOOL)isResponse
 {
     self = [super initWithFrame:frame];
     if (self) {
         _imageStr = image;
-        [self _initEdgeViewWithFrame:frame];
+        [self _initEdgeViewWithFrame:frame isResponse:isResponse];
     }
     return self;
 }
 
-- (void)_initEdgeViewWithFrame:(CGRect)frame
+- (void)_initEdgeViewWithFrame:(CGRect)frame isResponse:(BOOL)isResponse
 {
+    _isResponseImage = isResponse;
     self.contentMode = UIViewContentModeRedraw;
     UIImage *image = nil;
     CGRect newFrame = CGRectZero;
@@ -98,6 +113,10 @@
     _imageView.image = image;
     [self addSubview:_imageView];
     
+    if (isResponse) {
+        [_imageView addObserver:self forKeyPath:@"image" options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionOld context:nil];
+    }
+        
     UIRotationGestureRecognizer *rotationGesture = [[UIRotationGestureRecognizer alloc] initWithTarget:self action:@selector(rotationImage:)];
     rotationGesture.delegate = self;
     UIPinchGestureRecognizer *pinchGesture = [[UIPinchGestureRecognizer alloc] initWithTarget:self action:@selector(pinchImage:)];
@@ -350,6 +369,27 @@
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer
 {
     return YES;
+}
+
+- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
+{
+    if ([keyPath isEqualToString:@"image"]) {
+        
+        if (_isResponseImage) {
+            UIImage *newImage = [change objectForKey:@"new"];
+            CGRect bounds = self.imageView.bounds;
+            CGFloat width, height;
+            if (bounds.size.width / bounds.size.height < newImage.size.width / newImage.size.height) {
+                width = bounds.size.width;
+                height = width * newImage.size.height / newImage.size.width;
+            } else {
+                height = bounds.size.height;
+                width = height * newImage.size.width / newImage.size.height;
+            }
+            self.bounds = CGRectMake(0, 0, width + EDGE_WIDTH, height + EDGE_WIDTH);
+            [self resetView];
+        }
+    }
 }
 
 @end
