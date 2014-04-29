@@ -374,21 +374,18 @@
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
 {
     if ([keyPath isEqualToString:@"image"]) {
-        
-        if (_isResponseImage) {
-            UIImage *newImage = [change objectForKey:@"new"];
-            CGRect bounds = self.imageView.bounds;
-            CGFloat width, height;
-            if (bounds.size.width / bounds.size.height < newImage.size.width / newImage.size.height) {
-                width = bounds.size.width;
-                height = width * newImage.size.height / newImage.size.width;
-            } else {
-                height = bounds.size.height;
-                width = height * newImage.size.width / newImage.size.height;
-            }
-            self.bounds = CGRectMake(0, 0, width + EDGE_WIDTH, height + EDGE_WIDTH);
-            [self resetView];
+        UIImage *newImage = [change objectForKey:@"new"];
+        CGRect bounds = self.imageView.bounds;
+        CGFloat width, height;
+        if (bounds.size.width / bounds.size.height < newImage.size.width / newImage.size.height) {
+            width = bounds.size.width;
+            height = width * newImage.size.height / newImage.size.width;
+        } else {
+            height = bounds.size.height;
+            width = height * newImage.size.width / newImage.size.height;
         }
+        self.bounds = CGRectMake(0, 0, width + EDGE_WIDTH, height + EDGE_WIDTH);
+        [self resetView];
     }
 }
 
