@@ -77,7 +77,7 @@
 {
     self = [super initWithFrame:frame];
     if (self) {
-        _imageStr = image;
+        self.imageStr = image;
         [self _initEdgeViewWithFrame:frame isResponse:isResponse];
     }
     return self;
@@ -153,10 +153,12 @@
 
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx
 {
-    CGColorRef colorRef = [UIColor orangeColor].CGColor;
+    CGColorRef colorRef = [UIColor colorWithRed:245/255.0f green:122/255.0f blue:179/255.0f alpha:1.0].CGColor;
     if (!_isStretching) {
         colorRef = [UIColor clearColor].CGColor;
     }
+    layer.masksToBounds = YES;
+    layer.cornerRadius = 6.0f;
     CGContextSetStrokeColorWithColor(ctx, colorRef);
     
     CGContextSaveGState(ctx);
@@ -312,6 +314,10 @@
     _isStretching = NO;
     recordDegree = 0;
     self.transform = CGAffineTransformMakeRotation(recordDegree);
+    
+    if (_imageStr) {
+        _imageView.image = [UIImage imageWithContentsOfFile:_imageStr];
+    }
     
     self.bounds = CGRectMake(0, 0, self.originFrame.size.width, self.originFrame.size.height);
     self.frame = self.originFrame;
