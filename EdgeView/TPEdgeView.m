@@ -8,14 +8,20 @@
 
 #import "TPEdgeView.h"
 
-#define EDGE_WIDTH 4.0f
-#define TOUCH_EDGE 10.0f
-#define MIN_WIDTH (2 * EDGE_WIDTH) // minimum width for stretch
+#define EDGE_WIDTH     4.0f
+#define TOUCH_EDGE     10.0f
+#define MIN_WIDTH      (2 * EDGE_WIDTH) // minimum width for stretch
 #define STANDARD_WIDTH 44.0f
+#define UNSET_WIDTH    200
+#define UNSET_HEIGHT   200
 
 @interface TPEdgeView ()
 {
     CGFloat recordDegree;
+    
+    /* 保存Image尺寸，防止浮点运算不精确造成换同一张图片时图片始终在变大或者变小的问题 */
+    CGFloat curImageWidth;
+    CGFloat curImageHeight;
 }
 
 @property (nonatomic, retain) UIView *edgeView;
@@ -91,6 +97,8 @@
         CGSize size = image.size;
         CGFloat width = size.width;
         CGFloat height = size.height;
+        curImageWidth = width;
+        curImageHeight = height;
         if (frame.size.width / frame.size.height < width / height) {
             height = frame.size.height;
             width = size.width * height / size.height;
@@ -101,6 +109,10 @@
         newFrame = CGRectMake(frame.origin.x, frame.origin.y, width, height);
     }
     self.frame = newFrame;
+    // 防止view初始化时为CGRectZero
+    if (CGRectEqualToRect(newFrame, CGRectZero)) {
+        self.frame = frame;
+    }
     
     self.backgroundColor = [UIColor clearColor];
     
@@ -109,7 +121,7 @@
     [self addSubview:_edgeView];
     
     _imageView = [[UIImageView alloc] initWithFrame:CGRectMake(EDGE_WIDTH, EDGE_WIDTH, self.bounds.size.width - 2 * EDGE_WIDTH, self.bounds.size.height - 2 * EDGE_WIDTH)];
-    _imageView.backgroundColor = [UIColor purpleColor];
+    _imageView.backgroundColor = [UIColor clearColor];
     _imageView.image = image;
     [self addSubview:_imageView];
     
@@ -178,10 +190,7 @@
         } else {
             _isTouching = YES;
         }
-        //        if (_prevPoint.x <= TOUCH_EDGE || _prevPoint.x >= self.bounds.size.width - TOUCH_EDGE || _prevPoint.y <= TOUCH_EDGE || _prevPoint.y >= self.bounds.size.height - TOUCH_EDGE) {
-        //
-        //            _isTouching = YES;
-        //        }
+        
     } else {
         _startTime = touch.timestamp;
         CGPoint superPrevPoint = [self convertPoint:_prevPoint toView:self.superview];
@@ -193,12 +202,9 @@
 - (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event
 {
     CGPoint movePoint = [[touches anyObject] locationInView:self];
-    //    CGPoint superMovePoint = [self convertPoint:movePoint toView:self.superview];
     
     if (_isTouching && _isStretching) { // 拉伸view
-        //        CGPoint superPrevPoint = [self convertPoint:_prevPoint toView:self.superview];
-        //        CGFloat deltaX = superMovePoint.x - superPrevPoint.x;
-        //        CGFloat deltaY = superMovePoint.y - superPrevPoint.y;
+        
         CGRect prevBounds = self.bounds;
         
         CGFloat deltaX = movePoint.x - _prevPoint.x;
@@ -374,18 +380,36 @@
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
 {
     if ([keyPath isEqualToString:@"image"]) {
+        BOOL isResetFrame = NO;
         UIImage *newImage = [change objectForKey:@"new"];
-        CGRect bounds = self.imageView.bounds;
+        CGRect bounds = self.imageView.frame;
+        if (curImageWidth == 0 || curImageHeight == 0) { // 未用图片初始化控件
+            if (CGRectEqualToRect(bounds, CGRectMake(-EDGE_WIDTH, -EDGE_WIDTH, 2 * EDGE_WIDTH, 2 * EDGE_WIDTH))) {
+                isResetFrame = YES;
+                bounds = CGRectMake(0, 0, UNSET_WIDTH - 2 * EDGE_WIDTH, UNSET_HEIGHT - 2 * EDGE_WIDTH);
+            }
+            curImageWidth = UNSET_WIDTH - 2 * EDGE_WIDTH;
+            curImageHeight = UNSET_HEIGHT - 2 * EDGE_WIDTH;
+        }
         CGFloat width, height;
-        if (bounds.size.width / bounds.size.height < newImage.size.width / newImage.size.height) {
+        if (curImageWidth / curImageHeight < newImage.size.width / newImage.size.height) {
             width = bounds.size.width;
             height = width * newImage.size.height / newImage.size.width;
-        } else {
+        } else if (curImageWidth / curImageHeight > newImage.size.width / newImage.size.height){
             height = bounds.size.height;
             width = height * newImage.size.width / newImage.size.height;
+        } else {
+            height = bounds.size.height;
+            width = bounds.size.width;
         }
-        self.bounds = CGRectMake(0, 0, width + EDGE_WIDTH, height + EDGE_WIDTH);
+        self.bounds = CGRectMake(0, 0, width + EDGE_WIDTH * 2, height + EDGE_WIDTH * 2);
+        if (isResetFrame) {
+            self.frame = self.bounds;
+        }
+        
         [self resetView];
+        curImageWidth = newImage.size.width;
+        curImageHeight = newImage.size.height;
     }
 }
 
