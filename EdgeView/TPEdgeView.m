@@ -60,17 +60,21 @@
 
 - (void)setCurrentImage:(UIImage *)currentImage
 {
-    if (_currentImage != currentImage) {
-        [_currentImage release];
-        _currentImage = [currentImage retain];
-        
-        [self resetViewWithOp:YES];
+    @synchronized(self) {
+        if (_currentImage != currentImage) {
+            [_currentImage release];
+            _currentImage = [currentImage retain];
+            
+            [self resetViewWithOp:YES];
+        }
     }
 }
 
 - (UIImage *)currentImage
 {
-    return _currentImage;
+    @synchronized(self) {
+        return _currentImage;
+    }
 }
 
 #pragma mark - initialization
