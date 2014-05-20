@@ -49,7 +49,7 @@
     [btnChange addTarget:self action:@selector(changeImage) forControlEvents:UIControlEventTouchUpInside];
     [self.view addSubview:btnChange];
     
-    testview = [[TPEdgeView alloc] initWithFrame:CGRectMake(0, 200, 200, 200) image:[[NSBundle mainBundle] pathForResource:@"1.jpg" ofType:nil] isResponse:YES];
+    testview = [[TPEdgeView alloc] initWithFrame:CGRectMake(0, 200, 200, 200) image:[UIImage imageWithContentsOfFile:[[NSBundle mainBundle] pathForResource:@"1.jpg" ofType:nil]] isResponse:YES];
     testview.delegate = self;
     [self.view addSubview:testview];
     
@@ -62,7 +62,7 @@
 
 - (void)changeImage
 {
-    testview.imageView.image = [UIImage imageWithContentsOfFile:[[NSBundle mainBundle] pathForResource:@"2.jpg" ofType:nil]];
+    testview.currentImage = [UIImage imageWithContentsOfFile:[[NSBundle mainBundle] pathForResource:@"2.jpg" ofType:nil]];
     
 }
 

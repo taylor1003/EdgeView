@@ -7,11 +7,14 @@
 //
 
 #import "TPEdgeView.h"
+#import "UIImage+Resize.h"
 
 #define EDGE_WIDTH     4.0f
 #define TOUCH_EDGE     10.0f
 #define MIN_WIDTH      (2 * EDGE_WIDTH) // minimum width for stretch
-#define STANDARD_WIDTH 44.0f
+#define STANDARD_WIDTH 44.0f // 如果EdgeView的宽度和高度大于等于88，触摸边界固定为44，否则以中心
+
+// 如果没用frame初始化，EdgeView的默认宽度和高度为下面两个
 #define UNSET_WIDTH    200
 #define UNSET_HEIGHT   200
 
@@ -19,18 +22,20 @@
 {
     CGFloat recordDegree;
     
-    /* 保存Image尺寸，防止浮点运算不精确造成换同一张图片时图片始终在变大或者变小的问题 */
+    /* 保存image尺寸，防止浮点运算不精确造成换同一张图片时图片始终在变大或者变小或者初始化frame为CGRectZero的问题 */
     CGFloat curImageWidth;
     CGFloat curImageHeight;
 }
 
+@property (nonatomic, retain) UIImageView *imageView;
 @property (nonatomic, retain) UIView *edgeView;
 @property (nonatomic, assign) BOOL isTouching;
 @property (nonatomic, assign) BOOL isStretching;  // UITouch拉伸
 @property (nonatomic, assign) BOOL isDragging;    // UITouch拖动
 @property (nonatomic, assign) CGPoint prevPoint;
 @property (nonatomic, assign) NSTimeInterval startTime;
-@property (nonatomic, copy) NSString *imageStr;
+//@property (nonatomic, copy) NSString *imageStr;
+@property (nonatomic, copy) UIImage *initImage;
 @property (nonatomic, assign) BOOL isResponseImage;    // 切换imageView的image时，是否根据现在的宽度适应新的图片
 
 /* recording the  distance between touch point and center point when touch begin */
@@ -40,16 +45,32 @@
 
 @implementation TPEdgeView
 
+@dynamic currentImage;
+
 - (void)dealloc
-{
-    if (_isResponseImage) {
-        [_imageView removeObserver:self forKeyPath:@"image"];
-    }
-    
+{    
     [_edgeView release];
     [_imageView release];
-    [_imageStr release];
+    if (_initImage) {
+        [_initImage release];
+    }
+    
     [super dealloc];
+}
+
+- (void)setCurrentImage:(UIImage *)currentImage
+{
+    if (_currentImage != currentImage) {
+        [_currentImage release];
+        _currentImage = [currentImage retain];
+        
+        [self resetViewWithOp:YES];
+    }
+}
+
+- (UIImage *)currentImage
+{
+    return _currentImage;
 }
 
 #pragma mark - initialization
@@ -73,11 +94,23 @@
     return self;
 }
 
-- (id)initWithFrame:(CGRect)frame image:(NSString *)image isResponse:(BOOL)isResponse
+- (id)initWithFrame:(CGRect)frame imageString:(NSString *)imgStr isResponse:(BOOL)isResponse
 {
     self = [super initWithFrame:frame];
     if (self) {
-        self.imageStr = image;
+        _initImage = [[UIImage imageWithContentsOfFile:imgStr] copy];
+        _currentImage = [[UIImage imageWithContentsOfFile:imgStr] retain];
+        [self _initEdgeViewWithFrame:frame isResponse:isResponse];
+    }
+    return self;
+}
+
+- (id)initWithFrame:(CGRect)frame image:(UIImage *)image isResponse:(BOOL)isResponse
+{
+    self = [super initWithFrame:frame];
+    if (self) {
+        _initImage = [image copy];
+        _currentImage = [image retain];
         [self _initEdgeViewWithFrame:frame isResponse:isResponse];
     }
     return self;
@@ -87,14 +120,9 @@
 {
     _isResponseImage = isResponse;
     self.contentMode = UIViewContentModeRedraw;
-    UIImage *image = nil;
     CGRect newFrame = CGRectZero;
-    if (_imageStr != nil) { // 按照图片原尺寸自动缩放
-        image = [UIImage imageWithContentsOfFile:_imageStr];
-        if (image == nil) {
-            return;
-        }
-        CGSize size = image.size;
+    if (_currentImage != nil) { // 按照图片原尺寸自动缩放
+        CGSize size = _currentImage.size;
         CGFloat width = size.width;
         CGFloat height = size.height;
         curImageWidth = width;
@@ -122,13 +150,9 @@
     
     _imageView = [[UIImageView alloc] initWithFrame:CGRectMake(EDGE_WIDTH, EDGE_WIDTH, self.bounds.size.width - 2 * EDGE_WIDTH, self.bounds.size.height - 2 * EDGE_WIDTH)];
     _imageView.backgroundColor = [UIColor clearColor];
-    _imageView.image = image;
+    _imageView.image = _currentImage;
     [self addSubview:_imageView];
     
-    if (isResponse) {
-        [_imageView addObserver:self forKeyPath:@"image" options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionOld context:nil];
-    }
-        
     UIRotationGestureRecognizer *rotationGesture = [[UIRotationGestureRecognizer alloc] initWithTarget:self action:@selector(rotationImage:)];
     rotationGesture.delegate = self;
     UIPinchGestureRecognizer *pinchGesture = [[UIPinchGestureRecognizer alloc] initWithTarget:self action:@selector(pinchImage:)];
@@ -153,7 +177,7 @@
 
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx
 {
-    CGColorRef colorRef = [UIColor colorWithRed:245/255.0f green:122/255.0f blue:179/255.0f alpha:1.0].CGColor;
+    CGColorRef colorRef = [UIColor colorWithRed:245/255.0f green:122/255.0f blue:179/255.0f alpha:0.5].CGColor;
     if (!_isStretching) {
         colorRef = [UIColor clearColor].CGColor;
     }
@@ -261,7 +285,7 @@
             _prevPoint = movePoint;
         }
         
-        [self resetView];
+        [self resetViewWithOp:NO];
         
     } else if (!_isStretching && !_isTouching) {
         _isDragging = YES;
@@ -278,9 +302,11 @@
         UITouch *touch = [touches anyObject];
         if (touch.timestamp - _startTime >= 0.5) {
             _isStretching = !_isStretching;
-            [self resetView];
         }
     }
+    
+    [self resetViewWithOp:YES];
+    
     
     _prevPoint = CGPointZero;
     _isTouching = NO;
@@ -292,6 +318,8 @@
 
 - (void)touchesCancelled:(NSSet *)touches withEvent:(UIEvent *)event
 {
+    [self resetViewWithOp:YES];
+    
     _prevPoint = CGPointZero;
     _isTouching = NO;
     _isDragging = NO;
@@ -301,10 +329,68 @@
 }
 
 #pragma mark - 重绘视图以及所有子视图
-- (void)resetView
+- (void)resetViewWithOp:(BOOL)value
 {
     [self setNeedsDisplay];
     _imageView.frame = CGRectMake(EDGE_WIDTH, EDGE_WIDTH, self.bounds.size.width - 2 * EDGE_WIDTH, self.bounds.size.height - 2 * EDGE_WIDTH);
+    
+    if (value) {
+        if (!_isResponseImage) {
+            CGSize size = _imageView.frame.size;
+            dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^{
+                UIImage *image = [_currentImage resizedImage:size interpolationQuality:kCGInterpolationDefault];
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    _imageView.image = image;
+                });
+            });
+        } else {
+            BOOL isResetFrame = NO;
+            CGRect bounds = self.imageView.frame;
+            if (curImageWidth == 0 || curImageHeight == 0) { // 未用图片初始化控件
+                if (CGRectEqualToRect(bounds, CGRectMake(-EDGE_WIDTH, -EDGE_WIDTH, 2 * EDGE_WIDTH, 2 * EDGE_WIDTH))) {
+                    isResetFrame = YES;
+                    bounds = CGRectMake(0, 0, UNSET_WIDTH - 2 * EDGE_WIDTH, UNSET_HEIGHT - 2 * EDGE_WIDTH);
+                }
+                curImageWidth = UNSET_WIDTH - 2 * EDGE_WIDTH;
+                curImageHeight = UNSET_HEIGHT - 2 * EDGE_WIDTH;
+            }
+            CGFloat width, height;
+            if (curImageWidth / curImageHeight < _currentImage.size.width / _currentImage.size.height) {
+                width = bounds.size.width;
+                if (width < UNSET_WIDTH) {
+                    width = UNSET_WIDTH;
+                }
+                height = width * _currentImage.size.height / _currentImage.size.width;
+            } else if (curImageWidth / curImageHeight > _currentImage.size.width / _currentImage.size.height){
+                height = bounds.size.height;
+                if (height < UNSET_HEIGHT) {
+                    height = UNSET_HEIGHT;
+                }
+                width = height * _currentImage.size.width / _currentImage.size.height;
+            } else {
+                height = bounds.size.height;
+                width = bounds.size.width;
+            }
+            
+            dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^{
+                UIImage *image = [self.currentImage resizedImage:CGSizeMake(width, height) interpolationQuality:kCGInterpolationDefault];
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    _imageView.frame = CGRectMake(EDGE_WIDTH, EDGE_WIDTH, width, height);
+                    _imageView.image = image;
+                });
+            });
+            
+            self.bounds = CGRectMake(0, 0, width + EDGE_WIDTH * 2, height + EDGE_WIDTH * 2);
+            if (isResetFrame) {
+                self.frame = self.bounds;
+            }
+            
+            curImageWidth = _currentImage.size.width;
+            curImageHeight = _currentImage.size.height;
+        }
+        
+    }
+    
     [_imageView setNeedsDisplay];
 }
 
@@ -315,13 +401,13 @@
     recordDegree = 0;
     self.transform = CGAffineTransformMakeRotation(recordDegree);
     
-    if (_imageStr) {
-        _imageView.image = [UIImage imageWithContentsOfFile:_imageStr];
+    if (_initImage) {
+        self.currentImage = _initImage;
     }
     
     self.bounds = CGRectMake(0, 0, self.originFrame.size.width, self.originFrame.size.height);
     self.frame = self.originFrame;
-    [self resetView];
+    [self resetViewWithOp:NO];
 }
 
 #pragma mark - UIGestureRecognizer Respond Functions
@@ -337,6 +423,7 @@
     gesture.view.center = CGPointMake(location.x, location.y);
     
     if ([gesture state] == UIGestureRecognizerStateEnded) {
+        [self resetViewWithOp:YES];
         self.lastRotation = 0;
         return;
     }
@@ -345,8 +432,8 @@
     CGFloat rotation = 0.0 - (self.lastRotation - gesture.rotation);
     CGAffineTransform newTransform = CGAffineTransformRotate(currentTransform, rotation);
     self.transform = newTransform;
-    [self resetView];
     
+    [self resetViewWithOp:NO];
     self.lastRotation = gesture.rotation;
     
     if ([self.delegate respondsToSelector:@selector(tpEdgeViewBringOtherViewToFront:)]) {
@@ -362,6 +449,11 @@
         return;
     }
     
+    if ([gesture state] == UIGestureRecognizerStateEnded) {
+        [self resetViewWithOp:YES];
+        return;
+    }
+    
     [self.superview bringSubviewToFront:self];
     
     CGRect scaledBounds = CGRectMake(0, 0, self.bounds.size.width * gesture.scale, self.bounds.size.height * gesture.scale);
@@ -369,7 +461,7 @@
     CGPoint location = [gesture locationInView:self.superview];
     self.center = CGPointMake(location.x, location.y);
     
-    [self resetView];
+    [self resetViewWithOp:NO];
     gesture.scale = 1;
     
     if ([self.delegate respondsToSelector:@selector(tpEdgeViewBringOtherViewToFront:)]) {
@@ -381,42 +473,6 @@
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer
 {
     return YES;
-}
-
-- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
-{
-    if ([keyPath isEqualToString:@"image"]) {
-        BOOL isResetFrame = NO;
-        UIImage *newImage = [change objectForKey:@"new"];
-        CGRect bounds = self.imageView.frame;
-        if (curImageWidth == 0 || curImageHeight == 0) { // 未用图片初始化控件
-            if (CGRectEqualToRect(bounds, CGRectMake(-EDGE_WIDTH, -EDGE_WIDTH, 2 * EDGE_WIDTH, 2 * EDGE_WIDTH))) {
-                isResetFrame = YES;
-                bounds = CGRectMake(0, 0, UNSET_WIDTH - 2 * EDGE_WIDTH, UNSET_HEIGHT - 2 * EDGE_WIDTH);
-            }
-            curImageWidth = UNSET_WIDTH - 2 * EDGE_WIDTH;
-            curImageHeight = UNSET_HEIGHT - 2 * EDGE_WIDTH;
-        }
-        CGFloat width, height;
-        if (curImageWidth / curImageHeight < newImage.size.width / newImage.size.height) {
-            width = bounds.size.width;
-            height = width * newImage.size.height / newImage.size.width;
-        } else if (curImageWidth / curImageHeight > newImage.size.width / newImage.size.height){
-            height = bounds.size.height;
-            width = height * newImage.size.width / newImage.size.height;
-        } else {
-            height = bounds.size.height;
-            width = bounds.size.width;
-        }
-        self.bounds = CGRectMake(0, 0, width + EDGE_WIDTH * 2, height + EDGE_WIDTH * 2);
-        if (isResetFrame) {
-            self.frame = self.bounds;
-        }
-        
-        [self resetView];
-        curImageWidth = newImage.size.width;
-        curImageHeight = newImage.size.height;
-    }
 }
 
 @end

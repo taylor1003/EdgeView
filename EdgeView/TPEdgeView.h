@@ -11,14 +11,18 @@
 @protocol TPEdgeViewDelegate;
 
 @interface TPEdgeView : UIView <UIGestureRecognizerDelegate>
+{
+    UIImage *_currentImage;
+}
 
+@property (atomic, retain, setter = setCurrentImage:, getter = currentImage) UIImage *currentImage;
 @property (nonatomic, assign) CGRect originFrame;
 @property CGFloat lastRotation;
-@property (nonatomic, retain) UIImageView *imageView;
 @property (nonatomic, assign) id <TPEdgeViewDelegate> delegate;
 
 - (id)initWithFrame:(CGRect)frame isResponse:(BOOL)isResponse;
-- (id)initWithFrame:(CGRect)frame image:(NSString *)image isResponse:(BOOL)isResponse;
+- (id)initWithFrame:(CGRect)frame imageString:(NSString *)imgStr isResponse:(BOOL)isResponse;
+- (id)initWithFrame:(CGRect)frame image:(UIImage *)image isResponse:(BOOL)isResponse;
 
 - (void)resetToOrigin;
 
