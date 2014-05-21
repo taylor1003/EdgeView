@@ -22,9 +22,6 @@
 // Returns a rescaled copy of the image, taking into account its orientation
 // The image will be scaled disproportionately if necessary to fit the bounds specified by the parameter
 - (UIImage *)resizedImage:(CGSize)newSize interpolationQuality:(CGInterpolationQuality)quality {
-    // For multithreading
-    [self retain];
-    
     BOOL drawTransposed;
     CGAffineTransform transform = CGAffineTransformIdentity;
     
@@ -50,9 +47,7 @@
     }
     transform = [self transformForOrientation:newSize];
     
-    UIImage *image = [self resizedImage:newSize transform:transform drawTransposed:drawTransposed interpolationQuality:quality];
-    [self release];
-    return image;
+    return [self resizedImage:newSize transform:transform drawTransposed:drawTransposed interpolationQuality:quality];
 }
 
 // Resizes the image according to the given content mode, taking into account the image's orientation
